@@ -33,7 +33,6 @@ SOS = "<s>"
 EOS = "</s>"
 UNK_ID = 0
 
-
 def check_vocab(vocab_file, out_dir, check_special_token=True, sos=None,
                 eos=None, unk=None):
   """Check if vocab_file doesn't exist, create from corpus_file."""

@@ -175,6 +175,10 @@ def train(hparams, scope=None, target_session=""):
   # Preload data for sample decoding.
   dev_src_file = "%s.%s" % (hparams.dev_prefix, hparams.src)
   dev_tgt_file = "%s.%s" % (hparams.dev_prefix, hparams.tgt)
+
+  print("dev_src_file: ", dev_src_file)
+  print("dev_tgt_file: ", dev_tgt_file)
+
   sample_src_data = inference.load_data(dev_src_file)
   sample_tgt_data = inference.load_data(dev_tgt_file)
 

@@ -11,6 +11,8 @@ from tensorflow.python.ops import lookup_ops
 from .utils import iterator_utils
 from .utils import misc_utils as utils
 from .utils import vocab_utils
+from .single_cells.BN_LSTMCell_with_gf import BN_LSTMCell
+from .multi_cells.gated_feedback import GatedFeedbackMultiRNNCell
 
 
 __all__ = [
@@ -288,6 +290,17 @@ def _single_cell(unit_type, num_units, forget_bias, dropout,
         num_units,
         forget_bias=forget_bias,
         layer_norm=True)
+  elif unit_type == "batch_norm_lstm":
+    utils.print_out("  Batch Normalized LSTM, forget_bias=%g" % forget_bias,
+                    new_line=False)
+    single_cell = BN_LSTMCell(
+      num_units=num_units,
+      is_training=mode == tf.contrib.learn.ModeKeys.TRAIN,
+      statistics_length=100,
+      forget_bias=forget_bias,
+      use_batch_norm_h=True,
+      use_batch_norm_x=True,
+      use_batch_norm_c=True)
   else:
     raise ValueError("Unknown unit type %s!" % unit_type)
 
@@ -340,7 +353,7 @@ def _cell_list(unit_type, num_units, num_layers, num_residual_layers,
 
 def create_rnn_cell(unit_type, num_units, num_layers, num_residual_layers,
                     forget_bias, dropout, mode, num_gpus, base_gpu=0,
-                    single_cell_fn=None):
+                    single_cell_fn=None, multi_rnn_cell=None):
   """Create multi-layer RNN cell.
 
   Args:
@@ -361,6 +374,7 @@ def create_rnn_cell(unit_type, num_units, num_layers, num_residual_layers,
       as its device id.
     single_cell_fn: single_cell_fn: allow for adding customized cell.
       When not specified, we default to model_helper._single_cell
+    multi_rnn_cell: alternative to MultiRNNCell
   Returns:
     An `RNNCell` instance.
   """
@@ -378,7 +392,14 @@ def create_rnn_cell(unit_type, num_units, num_layers, num_residual_layers,
   if len(cell_list) == 1:  # Single layer.
     return cell_list[0]
   else:  # Multi layers
-    return tf.contrib.rnn.MultiRNNCell(cell_list)
+
+    if multi_rnn_cell:
+      if multi_rnn_cell == "gated_feedback":
+        return GatedFeedbackMultiRNNCell(cell_list)
+      else:
+        raise ValueError("Unknown Multi RNNCell type %s!" % multi_rnn_cell)
+    else:
+      return tf.contrib.rnn.MultiRNNCell(cell_list)
 
 
 def gradient_clip(gradients, max_gradient_norm):
@@ -390,7 +411,6 @@ def gradient_clip(gradients, max_gradient_norm):
       tf.summary.scalar("clipped_gradient", tf.global_norm(clipped_gradients)))
 
   return clipped_gradients, gradient_norm_summary
-
 
 def load_model(model, ckpt, session, name):
   start_time = time.time()
